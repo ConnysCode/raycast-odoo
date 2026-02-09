@@ -7,18 +7,16 @@ import { useState, useEffect } from "react";
 import { Project, Task, getProjects, getTasks, createTask } from "../utils/odoo";
 
 interface TaskSelectorProps {
-  onSubmit: (projectId: number, taskId: number, description: string) => void;
+  onSubmit: (projectId: number, taskId: number) => void;
   initialProjectId?: number | null;
   initialTaskId?: number | null;
-  initialDescription?: string | null;
 }
 
-export function TaskSelector({ onSubmit, initialProjectId, initialTaskId, initialDescription }: TaskSelectorProps) {
+export function TaskSelector({ onSubmit, initialProjectId, initialTaskId }: TaskSelectorProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjectId?.toString() || "");
   const [selectedTaskId, setSelectedTaskId] = useState<string>(initialTaskId?.toString() || "");
-  const [description, setDescription] = useState<string>(initialDescription || "");
   const [, setProjectSearch] = useState<string>("");
   const [taskSearch, setTaskSearch] = useState<string>("");
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -148,7 +146,7 @@ export function TaskSelector({ onSubmit, initialProjectId, initialTaskId, initia
       return;
     }
 
-    onSubmit(parseInt(selectedProjectId), parseInt(selectedTaskId), description);
+    onSubmit(parseInt(selectedProjectId), parseInt(selectedTaskId));
   }
 
   return (
@@ -159,7 +157,7 @@ export function TaskSelector({ onSubmit, initialProjectId, initialTaskId, initia
           <Action.SubmitForm title="Start Tracking" onSubmit={handleSubmit} />
         </ActionPanel>
       }
-      searchBarAccessory={<Form.Description text="Select project and task, or type a name to create a new task" />}
+      searchBarAccessory={<Form.Description text="Select a project and task to start tracking" />}
     >
       <Form.Dropdown
         id="project"
@@ -199,14 +197,6 @@ export function TaskSelector({ onSubmit, initialProjectId, initialTaskId, initia
           {taskSearch.trim() && <Form.Dropdown.Item value="__create__" title={`Create "${taskSearch.trim()}"`} />}
         </Form.Dropdown>
       )}
-
-      <Form.TextArea
-        id="description"
-        title="Description"
-        placeholder="Optional description of work..."
-        value={description}
-        onChange={setDescription}
-      />
     </Form>
   );
 }

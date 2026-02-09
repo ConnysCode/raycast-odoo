@@ -2,12 +2,13 @@
  * Unified timesheet command - checks for running timer and shows appropriate UI
  */
 
-import { Detail, ActionPanel, Action, showToast, Toast, launchCommand, LaunchType } from "@raycast/api";
+import { Detail, Form, ActionPanel, Action, showToast, Toast, launchCommand, LaunchType } from "@raycast/api";
 import { useEffect, useState, useRef } from "react";
 import { TaskSelector } from "./components/TaskSelector";
 import { useTimesheet } from "./hooks/useTimesheet";
 import {
   startTimerWithDetails,
+  updateTimer,
   getServerTime,
   cancelTimer,
   hasActiveSession,
@@ -19,6 +20,7 @@ export default function TimesheetCommand() {
   const { state, loading, error, refresh, stop } = useTimesheet(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [stopRequested, setStopRequested] = useState(false);
   const serverTimeOffsetRef = useRef<number>(0);
 
   // Check authentication on mount
@@ -82,7 +84,7 @@ export default function TimesheetCommand() {
     }
   }
 
-  async function handleStartTimer(projectId: number, taskId: number, description: string) {
+  async function handleStartTimer(projectId: number, taskId: number) {
     setIsSubmitting(true);
     try {
       await showToast({
@@ -90,8 +92,8 @@ export default function TimesheetCommand() {
         title: "Starting timer...",
       });
 
-      // Start the timer with project, task, and description in one operation
-      await startTimerWithDetails(projectId, taskId, description || undefined);
+      // Start the timer with project and task
+      await startTimerWithDetails(projectId, taskId);
 
       await showToast({
         style: Toast.Style.Success,
@@ -113,15 +115,22 @@ export default function TimesheetCommand() {
     }
   }
 
-  async function handleStopTimer() {
-    if (!state?.timerId || !state?.projectId || !state?.taskId) {
+  function handleStopTimer() {
+    setStopRequested(true);
+  }
+
+  async function handleStopWithDescription(values: { description: string }) {
+    const description = values.description.trim();
+    if (!description) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Timer Incomplete",
-        message: "Please assign project and task first",
+        title: "Description Required",
+        message: "Please describe what you worked on",
       });
       return;
     }
+
+    if (!state?.timerId) return;
 
     setIsSubmitting(true);
     try {
@@ -130,6 +139,8 @@ export default function TimesheetCommand() {
         title: "Stopping timer...",
       });
 
+      // Save description to the timesheet entry, then stop the timer
+      await updateTimer(state.timerId, undefined, undefined, description);
       const result = await stop(state.timerId);
 
       await showToast({
@@ -138,6 +149,7 @@ export default function TimesheetCommand() {
         message: `Logged ${formatDuration(result.duration)}`,
       });
 
+      setStopRequested(false);
       // Refresh state to show start form
       await refresh(false);
     } catch (error) {
@@ -200,6 +212,26 @@ export default function TimesheetCommand() {
     return <Detail isLoading={true} markdown="# Checking timer status..." />;
   }
 
+  // Stop form - prompt for description before stopping
+  if (state?.timerId && stopRequested) {
+    return (
+      <Form
+        actions={
+          <ActionPanel>
+            <Action.SubmitForm title="Stop Timer" onSubmit={handleStopWithDescription} />
+            <Action title="Back" onAction={() => setStopRequested(false)} shortcut={{ modifiers: ["cmd"], key: "." }} />
+          </ActionPanel>
+        }
+      >
+        <Form.Description
+          title="Stopping Timer"
+          text={`${state.projectName || "Unknown"} — ${state.taskName || "Unknown"} (${formatDuration(elapsedSeconds)})`}
+        />
+        <Form.TextArea id="description" title="Description" placeholder="What did you work on?" autoFocus />
+      </Form>
+    );
+  }
+
   // Timer running state
   if (state?.timerId) {
     const hasProjectAndTask = state.projectId && state.taskId;
@@ -213,9 +245,6 @@ ${state.projectName || "_Not assigned_"}
 
 ## Task
 ${state.taskName || "_Not assigned_"}
-
-## Description
-${state.description || "_No description_"}
 
 ${!hasProjectAndTask ? "\n⚠️ **Warning:** Project or task not assigned. Please edit the timer before stopping." : ""}`;
 
