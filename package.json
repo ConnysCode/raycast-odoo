@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "odoo-time-tracking",
+  "name": "odoo-time-keeper",
   "version": "1.0.0",
-  "title": "Odoo - Time Tracking",
+  "title": "Odoo - Time Keeper",
   "description": "Track time, manage timesheets, and monitor attendance in Odoo",
   "icon": "extension-icon.png",
   "author": "connyscode",
